@@ -9,7 +9,10 @@
   "author": "ikealmighty",
   "license": "ISC",
   "dependencies": {
-    "fastify": "^4.23.2"
+    "fastify": "^4.23.2",
+    "fastify-mongodb": "^4.2.0",
+    "jsonwebtoken": "^9.0.2",
+    "mongodb": "^6.1.0"
   },
   "devDependencies": {
     "nodemon": "^3.0.1"
