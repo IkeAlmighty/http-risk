@@ -9,6 +9,7 @@ fastify.register(require('fastify-mongodb'), { url: process.env.MONGO_URI })
 import jwt from 'jsonwebtoken';
 
 import territories from "./territories.js";
+const MAX_PLAYERS = 8;
 
 fastify.get('/', (req, res) => {
     res.send({ message: 'hello!' })
@@ -27,40 +28,72 @@ fastify.get('/join', async (req, res) => {
 
     const { username } = req.query;
 
-    // connect to mongodb
-    const db = fastify.mongo.db;
+    if (!username) {
+        res.send({ error: 'invalid request, please choose a username!' })
+    }
+    try {
+        // connect to mongodb
+        const db = fastify.mongo.db;
 
-    // add username to next available game slot
-    let openGame = await db.collection("games").findOne({ gameStarted: false, players: { $size: { $lt: 8 } } });
+        // find the next available open game
+        let openGame = await db.collection("games").findOne({ gameStarted: false, players: { $size: { $lt: MAX_PLAYERS } } });
 
-    // OR create new game if there isn't an available slot
-    if (!openGame) {
-        let newGameDocument = {
-            players: [{ username }],
-            gameStarted: false,
-            territories,
+        // OR create new game if there isn't an available slot
+        if (!openGame) {
+            let newGameDocument = {
+                players: [{ username }],
+                gameStarted: false,
+                activePlayer: null,
+                territories,
+            }
+
+            const _id = await db.collection("games").insertOne(newGameDocument).insertedId;
+            openGame = { ...newGameDocument, _id }
+        }
+        else {
+            // if the game is full now, then update the gameStarted field:
+            if (openGame.players.length === MAX_PLAYERS - 1) {
+                await db.collection("games").updateOne({ _id: openGame._id }, { $set: { gameStarted: true, players: [...openGame.players, { username }] } })
+            }
+            else {
+                // else, just add the player:
+                await db.collection("games").updateOne({ _id: openGame._id }, { $set: { players: [...openGame.players, { username }] } })
+            }
         }
 
-        const id = (await db.collection("games").insertOne(newGameDocument)).insertedId;
-        openGame = { ...newGameDocument, id }
+        // create jwt 
+        const token = jwt.sign({ username, gameId: id }, process.TOKEN_SECRET)
+
+        // respond to client with jwt. 
+        res.send({ token });
+    } catch (err) {
+        fastify.log.error(err);
+        res.send({ error: "server error" })
     }
-
-    // create jwt 
-    const token = jwt.sign({ username, gameId: id }, process.TOKEN_SECRET)
-
-    // respond to client with jwt. 
-    res.send(token);
 })
 
 fastify.get('refresh', (req, res) => {
     // verify jwt token from client
+    const token = req.headers.authorization.split(' ')[1];
     // if it is valid, create a new token
-    // return new token
+    jwt.verify(token, process.env.TOKEN_SECRET, (err, decoded) => {
+        if (err) fastify.log.error(err);
+        const newToken = jwt.sign({ username: decoded.username, gameId: decoded.gameId }, process.env.TOKEN_SECRET)
+
+        // send new token
+        res.send({ token: newToken })
+    })
 })
 
 fastify.get('/attack', (req, res) => {
     // Send an attack from one territory (that the current user owns)
     // to another territory (that the user does not own)
+
+    // if the request did not come from an active player, 
+    // then return an error
+
+    // retrieve documents for both territories.
+    // 
 })
 
 fastify.get('/endturn', (req, res) => {
