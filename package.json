@@ -2,15 +2,16 @@
   "name": "fastify-risk-game",
   "version": "1.0.0",
   "description": "",
-  "main": "index.js",
+  "main": "src/app.js",
   "scripts": {
-    "dev": "PORT=3000 nodemon index.js"
+    "dev": "nodemon src/app.js"
   },
   "author": "ikealmighty",
   "license": "ISC",
   "dependencies": {
+    "@fastify/mongodb": "^8.0.0",
+    "dotenv": "^16.3.1",
     "fastify": "^4.23.2",
-    "fastify-mongodb": "^4.2.0",
     "jsonwebtoken": "^9.0.2",
     "mongodb": "^6.1.0"
   },
